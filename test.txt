@@ -1,0 +1,241 @@
+import { useEffect, useState, useCallback } from 'react';
+import { generate } from '../utils/sudokuGenerator';
+import { Board, Difficulty } from '../constants/sudoku.constants';
+import { DIFFICULTY_POINTS } from '../constants/sudoku-points.constants';
+import {
+  AlertMessage,
+  BoardStats,
+  EvaluationResult,
+  PointsConfiguration,
+  ProcessResult,
+} from '../interfaces/sudoku-points.interface';
+
+export const useSudokuGame = (initialDifficulty: Difficulty = 'facil') => {
+  const [difficulty, setDifficulty] = useState<Difficulty>(initialDifficulty);
+  const [board, setBoard] = useState<Board>([]);
+  const [initialBoard, setInitialBoard] = useState<Board>([]);
+  const [solution, setSolution] = useState<Board>([]);
+  const [score, setScore] = useState<number>(0);
+  const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
+  const [alert, setAlert] = useState<{ title: string; message: string } | null>(
+    null,
+  );
+  const [gameId, setGameId] = useState(0);
+  // En tu hook useSudokuGame, agrega un nuevo estado:
+  const [validatedCells, setValidatedCells] = useState<Set<string>>(new Set());
+
+  // Función auxiliar para crear key de celda
+  const getCellKey = (row: number, col: number): string => `${row}-${col}`;
+
+  useEffect(() => {
+    const { board: newBoard, solution: newSolution } = generate(difficulty);
+    setBoard(JSON.parse(JSON.stringify(newBoard)));
+    setInitialBoard(JSON.parse(JSON.stringify(newBoard)));
+    setSolution(newSolution);
+    setSelectedNumber(null);
+  }, [difficulty, gameId]);
+
+  const changeDifficulty = (d: Difficulty) => {
+    setDifficulty(d);
+    setGameId(id => id + 1);
+  };
+
+  const setCell = (r: number, c: number, value: number) => {
+    // Single responsibility: only update if it's not an initial cell
+    if (initialBoard[r][c] !== 0) {
+      setAlert({
+        title: 'Aviso',
+        message: 'No puedes cambiar los números iniciales.',
+      });
+      return;
+    }
+    setBoard(prev => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      copy[r][c] = value;
+      return copy;
+    });
+  };
+
+  const giveHint = () => {
+    const empty: { r: number; c: number }[] = [];
+    board.forEach((row, r) =>
+      row.forEach((cell, c) => {
+        if (cell === 0) empty.push({ r, c });
+      }),
+    );
+    if (empty.length === 0) {
+      setAlert({
+        title: '¡Felicidades!',
+        message: '¡Ya completaste el tablero!',
+      });
+      return;
+    }
+    const { r, c } = empty[Math.floor(Math.random() * empty.length)];
+    setBoard(prev => {
+      const copy = JSON.parse(JSON.stringify(prev));
+      copy[r][c] = solution[r][c];
+      return copy;
+    });
+  };
+
+  /**
+   * Obtiene la configuración de puntos para una dificultad específica
+   */
+  const getPointConfiguration = (
+    difficulty: Difficulty,
+  ): PointsConfiguration => {
+    return DIFFICULTY_POINTS[difficulty] || DIFFICULTY_POINTS.facil;
+  };
+
+
+
+ 
+
+
+
+  // === FUNCIÓN PRINCIPAL (Orchestrator Pattern) ===
+
+  /**
+   * Función principal que coordina la confirmación del tablero
+   */
+
+  const confirmBoard = (): void => {
+    const pointConfig = getPointConfiguration(difficulty);
+    const newBoard = board.map(row => [...row]);
+    const newValidatedCells = new Set(validatedCells);
+
+    let correctCount = 0;
+    let incorrectCount = 0;
+    let totalPointsChange = 0;
+
+    for (let i = 0; i < 9; i++) {
+      for (let j = 0; j < 9; j++) {
+        const currentValue = board[i][j];
+        const correctValue = solution[i][j];
+        const isInitialCell = !!(initialBoard && initialBoard[i][j] !== 0);
+        const cellKey = getCellKey(i, j);
+
+        // Solo evaluar celdas del usuario que NO han sido validadas antes
+        if (
+          currentValue !== 0 &&
+          !isInitialCell &&
+          !validatedCells.has(cellKey)
+        ) {
+          if (currentValue === correctValue) {
+            // Número correcto: sumar puntos y marcar como validada
+            correctCount++;
+            totalPointsChange += pointConfig.correct;
+            newValidatedCells.add(cellKey);
+          } else {
+            // Número incorrecto: restar puntos y borrar (no marcar como validada)
+            incorrectCount++;
+            totalPointsChange += pointConfig.incorrect;
+            newBoard[i][j] = 0;
+          }
+        }
+
+        // Si una celda validada fue borrada por el usuario, removerla de validadas
+        if (currentValue === 0 && validatedCells.has(cellKey)) {
+          newValidatedCells.delete(cellKey);
+        }
+      }
+    }
+
+    // Actualizar estados
+    setBoard(newBoard);
+    setValidatedCells(newValidatedCells);
+
+    // Calcular nuevo score
+    const newScore = (() => {
+      const calculatedScore = score + totalPointsChange;
+      return !pointConfig.allowNegative
+        ? Math.max(0, calculatedScore)
+        : calculatedScore;
+    })();
+
+    setScore(newScore);
+
+    // Verificar completitud
+    const isComplete = newBoard.every(row => row.every(cell => cell !== 0));
+
+    // Logs para debugging
+    console.log('=== CONFIRMACIÓN DE TABLERO ===');
+    console.log('Números nuevos correctos:', correctCount);
+    console.log('Números nuevos incorrectos:', incorrectCount);
+    console.log('Cambio de puntos esta vez:', totalPointsChange);
+    console.log('solution solution solution:', solution);
+    console.log('Celdas validadas:', Array.from(newValidatedCells));
+
+    // Generar mensajes
+    if (isComplete) {
+      const bonusPoints = 50;
+      const finalScore = pointConfig.allowNegative
+        ? newScore + bonusPoints
+        : Math.max(0, newScore + bonusPoints);
+      setScore(finalScore);
+      setSelectedNumber(null);
+      setScore(0);
+      setAlert({
+        title: 'Sudoku Completado!',
+        message: `¡Excelente trabajo! Obtuviste ${bonusPoints} puntos bonus. Puntuación final: ${finalScore}`,
+      });
+      setScore(0);
+    } else if (correctCount > 0 && incorrectCount > 0) {
+      setAlert({
+        title: 'Revisión Completada',
+        message: `${correctCount} números nuevos correctos (+${
+          correctCount * pointConfig.correct
+        }), ${incorrectCount} incorrectos (${
+          incorrectCount * pointConfig.incorrect
+        }). Puntuación: ${newScore}`,
+      });
+    } else if (correctCount > 0) {
+      setAlert({
+        title: '¡Muy bien!',
+        message: `${correctCount} números nuevos correctos. +${
+          correctCount * pointConfig.correct
+        } puntos. Puntuación: ${newScore}`,
+      });
+    } else if (incorrectCount > 0) {
+      setAlert({
+        title: 'Números incorrectos',
+        message: `${incorrectCount} números borrados. ${
+          incorrectCount * pointConfig.incorrect
+        } puntos. Puntuación: ${newScore}`,
+      });
+    } else {
+      setAlert({
+        title: 'Sin cambios',
+        message: 'No hay números nuevos para evaluar.',
+      });
+    }
+  };
+
+  const mockAdsAndHint = async () => {
+    setAlert({
+      title: 'Publicidad',
+      message: 'Imagina que estás viendo un anuncio...',
+    });
+    setTimeout(() => {
+      setAlert(null);
+      giveHint();
+    }, 1500);
+  };
+
+  return {
+    board,
+    initialBoard,
+    solution,
+    score,
+    setScore,
+    selectedNumber,
+    alert,
+    setSelectedNumber,
+    setCell,
+    changeDifficulty,
+    giveHint,
+    confirmBoard,
+    mockAdsAndHint,
+    setAlert,
+  } as const;
+};

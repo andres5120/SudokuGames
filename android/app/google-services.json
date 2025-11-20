@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "169827444623",
+    "project_id": "iqgames-9315c",
+    "storage_bucket": "iqgames-9315c.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:169827444623:android:926bf2438014421bf4cdfa",
+        "android_client_info": {
+          "package_name": "com.iqgames"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "169827444623-hvr3c6k21oo0ngq7s7gsnkou9lmk843g.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.iqgames",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "169827444623-v125o9t1mvoh4g595tbqbjh7jfgrj5lv.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAA49sOOzOkQgXQuZIXOMpavLN74YGCIYE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "169827444623-v125o9t1mvoh4g595tbqbjh7jfgrj5lv.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
